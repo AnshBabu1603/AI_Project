@@ -9,8 +9,8 @@ from youtube_search import YoutubeSearch
 import os
 
 
-model = load_model("models\model.h5")
-label = np.load("models\labels.npy")
+model = load_model("models/model.h5")
+label = np.load("models/labels.npy")
 
 
 
