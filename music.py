@@ -9,7 +9,11 @@ from youtube_search import YoutubeSearch
 import os
 
 
-model = load_model("models/model.h5")
+@st.cache_resource
+def get_model():
+    return load_model("models/model.h5", compile=False)
+
+model = get_model()
 label = np.load("models/labels.npy")
 
 
