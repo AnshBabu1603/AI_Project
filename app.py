@@ -8,31 +8,30 @@ from keras.models import load_model
 from youtube_search import YoutubeSearch
 import os
 
-
-@st.cache_resource
-def load_emotion_model():
-    return load_model("models/model.h5", compile=False)
-
-model = load_emotion_model()
+# Load the model and labels
+model = load_model("models/model.h5")
 label = np.load("models/labels.npy")
 
+# Initialize MediaPipe for face and hand landmarks
 mp_holistic = mp.solutions.holistic
 mp_hands = mp.solutions.hands
 drawing = mp.solutions.drawing_utils
 holistic = mp_holistic.Holistic()
 
+# Initialize emotion state in session_state
 if "emotion" not in st.session_state:
     st.session_state["emotion"] = None
 
-# Restore emotion if saved
-if os.path.exists("emotion.npy"):
-    try:
-        detected_emotion = np.load("emotion.npy", allow_pickle=True)[0]
-        if isinstance(detected_emotion, str) and detected_emotion.strip():
-            st.session_state["emotion"] = detected_emotion
-    except Exception:
-        st.session_state["emotion"] = None
-
+# If we have a previously saved emotion in session_state, restore it
+if "emotion" in st.session_state and st.session_state["emotion"] is None:
+    if os.path.exists("emotion.npy"):
+        try:
+            detected_emotion = np.load("emotion.npy", allow_pickle=True)[0]
+            if isinstance(detected_emotion, str) and detected_emotion.strip():
+                st.session_state["emotion"] = detected_emotion
+        except Exception as e:
+            st.error(f"Error loading saved emotion: {e}")
+            st.session_state["emotion"] = None
 
 class EmotionProcessor(VideoProcessorBase):
     def recv(self, frame):
@@ -59,11 +58,11 @@ class EmotionProcessor(VideoProcessorBase):
             prediction = model.predict(features_np, verbose=0)
             emotion = label[np.argmax(prediction)]
             st.session_state["emotion"] = emotion
-            np.save("emotion.npy", np.array([emotion]))
+            np.save("emotion.npy", np.array([emotion]))  # Save emotion for future sessions
 
             cv2.putText(frm, emotion, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
-        # Draw landmarks
+        # Draw landmarks on face and hands
         drawing.draw_landmarks(frm, result.face_landmarks, mp_holistic.FACEMESH_CONTOURS)
         drawing.draw_landmarks(frm, result.left_hand_landmarks, mp_hands.HAND_CONNECTIONS)
         drawing.draw_landmarks(frm, result.right_hand_landmarks, mp_hands.HAND_CONNECTIONS)
@@ -84,7 +83,7 @@ def get_youtube_video(query):
 # ---------- UI Starts Here ----------
 st.title("🎵 Emotion-Based Music Recommender 🎶")
 
-# Emotion background and emoji
+# Emotion background and emoji color coding
 emotion_color_map = {
     "happy": "#FFD700",
     "sad": "#4682B4",
@@ -101,6 +100,7 @@ emotion_emoji_map = {
     "rock": "🤘"
 }
 
+# Display background color based on detected emotion
 emotion = st.session_state.get("emotion")
 if emotion in emotion_color_map:
     st.markdown(f"""
@@ -115,7 +115,7 @@ if emotion in emotion_color_map:
 if emotion in emotion_emoji_map:
     st.markdown(f"## Mood Detected: {emotion_emoji_map[emotion]} {emotion.capitalize()}")
 
-# Inputs
+# Inputs for language and singer
 lang = st.text_input("Enter Language (e.g., English, Hindi)")
 singer = st.text_input("Enter Singer Name")
 
@@ -128,7 +128,7 @@ if lang and singer:
         async_processing=True
     )
 
-# Button to fetch songs
+# Button to fetch songs based on detected emotion
 if st.button("Recommend me songs"):
     emotion = st.session_state.get("emotion")
 
