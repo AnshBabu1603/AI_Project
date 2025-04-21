@@ -5,5 +5,5 @@ numpy
 mediapipe
 keras
 tensorflow
-youtube-search-python
+youtube_search
 av
