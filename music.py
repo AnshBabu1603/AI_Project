@@ -10,30 +10,27 @@ import os
 
 
 @st.cache_resource
-def get_model():
+def load_emotion_model():
     return load_model("models/model.h5", compile=False)
 
-model = get_model()
+model = load_emotion_model()
 label = np.load("models/labels.npy")
 
-
-
-holistic = mp.solutions.holistic
-hands = mp.solutions.hands
-holis = holistic.Holistic()
+mp_holistic = mp.solutions.holistic
+mp_hands = mp.solutions.hands
 drawing = mp.solutions.drawing_utils
-
+holistic = mp_holistic.Holistic()
 
 if "emotion" not in st.session_state:
     st.session_state["emotion"] = None
 
-
+# Restore emotion if saved
 if os.path.exists("emotion.npy"):
     try:
-        detected_emotion = np.load("emotion.npy")[0]
+        detected_emotion = np.load("emotion.npy", allow_pickle=True)[0]
         if isinstance(detected_emotion, str) and detected_emotion.strip():
             st.session_state["emotion"] = detected_emotion
-    except:
+    except Exception:
         st.session_state["emotion"] = None
 
 
@@ -41,66 +38,60 @@ class EmotionProcessor(VideoProcessorBase):
     def recv(self, frame):
         frm = frame.to_ndarray(format="bgr24")
         frm = cv2.flip(frm, 1)
+        result = holistic.process(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB))
+        features = []
 
-        res = holis.process(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB))
-        lst = []
+        if result.face_landmarks:
+            base = result.face_landmarks.landmark[1]
+            features.extend([(lm.x - base.x, lm.y - base.y) for lm in result.face_landmarks.landmark])
 
-        if res.face_landmarks:
-            for i in res.face_landmarks.landmark:
-                lst.append(i.x - res.face_landmarks.landmark[1].x)
-                lst.append(i.y - res.face_landmarks.landmark[1].y)
+            for hand_lm, ref_idx in [
+                (result.left_hand_landmarks, 8),
+                (result.right_hand_landmarks, 8),
+            ]:
+                if hand_lm:
+                    base = hand_lm.landmark[ref_idx]
+                    features.extend([(lm.x - base.x, lm.y - base.y) for lm in hand_lm.landmark])
+                else:
+                    features.extend([(0.0, 0.0)] * 21)
 
-            if res.left_hand_landmarks:
-                for i in res.left_hand_landmarks.landmark:
-                    lst.append(i.x - res.left_hand_landmarks.landmark[8].x)
-                    lst.append(i.y - res.left_hand_landmarks.landmark[8].y)
-            else:
-                lst.extend([0.0] * 42)
+            features_np = np.array(features).flatten().reshape(1, -1)
+            prediction = model.predict(features_np, verbose=0)
+            emotion = label[np.argmax(prediction)]
+            st.session_state["emotion"] = emotion
+            np.save("emotion.npy", np.array([emotion]))
 
-            if res.right_hand_landmarks:
-                for i in res.right_hand_landmarks.landmark:
-                    lst.append(i.x - res.right_hand_landmarks.landmark[8].x)
-                    lst.append(i.y - res.right_hand_landmarks.landmark[8].y)
-            else:
-                lst.extend([0.0] * 42)
+            cv2.putText(frm, emotion, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
-            lst = np.array(lst).reshape(1, -1)
-
-            
-            pred = label[np.argmax(model.predict(lst))]
-            print("Detected Emotion:", pred)
-            st.session_state["emotion"] = pred
-            np.save("emotion.npy", np.array([pred]))
-
-            
-            cv2.putText(frm, f"{pred}", (50, 50), cv2.FONT_ITALIC, 1, (255, 0, 0), 2)
-
-        drawing.draw_landmarks(frm, res.face_landmarks, holistic.FACEMESH_CONTOURS)
-        drawing.draw_landmarks(frm, res.left_hand_landmarks, hands.HAND_CONNECTIONS)
-        drawing.draw_landmarks(frm, res.right_hand_landmarks, hands.HAND_CONNECTIONS)
+        # Draw landmarks
+        drawing.draw_landmarks(frm, result.face_landmarks, mp_holistic.FACEMESH_CONTOURS)
+        drawing.draw_landmarks(frm, result.left_hand_landmarks, mp_hands.HAND_CONNECTIONS)
+        drawing.draw_landmarks(frm, result.right_hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
         return av.VideoFrame.from_ndarray(frm, format="bgr24")
 
 
-def get_youtube_video(song_query):
-    results = YoutubeSearch(song_query, max_results=1).to_dict()
-    if results:
-        video_id = results[0]['id']
-        return f"https://www.youtube.com/embed/{video_id}"
+def get_youtube_video(query):
+    try:
+        results = YoutubeSearch(query, max_results=1).to_dict()
+        if results:
+            return f"https://www.youtube.com/embed/{results[0]['id']}"
+    except Exception as e:
+        st.error(f"🎥 YouTube search error: {e}")
     return None
 
 
+# ---------- UI Starts Here ----------
 st.title("🎵 Emotion-Based Music Recommender 🎶")
 
-
+# Emotion background and emoji
 emotion_color_map = {
-    "happy": "#FFD700",  
-    "sad": "#4682B4",  
-    "angry": "#FF4500",  
-    "shocked": "#32CD32",  
-    "rock": "#000000"  
+    "happy": "#FFD700",
+    "sad": "#4682B4",
+    "angry": "#FF4500",
+    "shocked": "#32CD32",
+    "rock": "#000000"
 }
-
 
 emotion_emoji_map = {
     "happy": "😊",
@@ -110,52 +101,52 @@ emotion_emoji_map = {
     "rock": "🤘"
 }
 
-
-if st.session_state["emotion"] in emotion_color_map:
-    bg_color = emotion_color_map[st.session_state["emotion"]]
+emotion = st.session_state.get("emotion")
+if emotion in emotion_color_map:
     st.markdown(f"""
         <style>
             .stApp {{
-                background-color: {bg_color};
-                color: white; /* Adjust text color for contrast */
+                background-color: {emotion_color_map[emotion]};
+                color: white;
             }}
         </style>
     """, unsafe_allow_html=True)
 
+if emotion in emotion_emoji_map:
+    st.markdown(f"## Mood Detected: {emotion_emoji_map[emotion]} {emotion.capitalize()}")
 
-if st.session_state["emotion"] in emotion_emoji_map:
-    st.markdown(f"## Mood Detected: {emotion_emoji_map[st.session_state['emotion']]} {st.session_state['emotion'].capitalize()}")
-
-
+# Inputs
 lang = st.text_input("Enter Language (e.g., English, Hindi)")
 singer = st.text_input("Enter Singer Name")
 
-
+# Start camera only after inputs
 if lang and singer:
     st.subheader("🎥 Detecting Emotion from Camera...")
-    webrtc_streamer(key="emotion_stream", video_processor_factory=lambda: EmotionProcessor())
+    webrtc_streamer(
+        key="emotion_stream",
+        video_processor_factory=EmotionProcessor,
+        async_processing=True
+    )
 
-
+# Button to fetch songs
 if st.button("Recommend me songs"):
-    detected_emotion = st.session_state["emotion"]
+    emotion = st.session_state.get("emotion")
 
-    if not detected_emotion:
+    if not emotion:
         st.warning("⚠️ Please let me capture your emotion first!")
     elif lang and singer:
-        st.success(f"✅ Detected Emotion: {detected_emotion}")
-
-        
-        song_query = f"{singer} {detected_emotion} {lang} song"
-        video_url = get_youtube_video(song_query)
+        st.success(f"✅ Detected Emotion: {emotion}")
+        query = f"{singer} {emotion} {lang} song"
+        video_url = get_youtube_video(query)
 
         if video_url:
-            st.success(f"🎵 Now Playing: {singer}'s {detected_emotion} song")
-            st.video(video_url)  
+            st.success(f"🎵 Now Playing: {singer}'s {emotion} song")
+            st.video(video_url)
         else:
-            st.error("❌ No matching songs found!")
+            st.error("❌ No matching songs found.")
 
-        
-        np.save("emotion.npy", np.array([""]))
+        # Clear state after recommendation
         st.session_state["emotion"] = None
+        np.save("emotion.npy", np.array([""]))
     else:
         st.warning("⚠️ Please enter both language and singer!")
