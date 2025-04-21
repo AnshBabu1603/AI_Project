@@ -9,8 +9,8 @@ from youtube_search import YoutubeSearch
 import os
 
 
-model = load_model(r"C:\Users\coola\OneDrive\Desktop\AI Project\models\model.h5")
-label = np.load(r"C:\Users\coola\OneDrive\Desktop\AI Project\models\labels.npy")
+model = load_model("models\model.h5")
+label = np.load("models\labels.npy")
 
 
 
@@ -24,9 +24,9 @@ if "emotion" not in st.session_state:
     st.session_state["emotion"] = None
 
 
-if os.path.exists(r"C:\Users\coola\OneDrive\Desktop\AI Project\data\emotion.npy"):
+if os.path.exists("emotion.npy"):
     try:
-        detected_emotion = np.load(r"C:\Users\coola\OneDrive\Desktop\AI Project\data\emotion.npy")[0]
+        detected_emotion = np.load("emotion.npy")[0]
         if isinstance(detected_emotion, str) and detected_emotion.strip():
             st.session_state["emotion"] = detected_emotion
     except:
@@ -66,7 +66,7 @@ class EmotionProcessor(VideoProcessorBase):
             pred = label[np.argmax(model.predict(lst))]
             print("Detected Emotion:", pred)
             st.session_state["emotion"] = pred
-            np.save(r"C:\Users\coola\OneDrive\Desktop\AI Project\data\emotion.npy", np.array([pred]))
+            np.save("emotion.npy", np.array([pred]))
 
             
             cv2.putText(frm, f"{pred}", (50, 50), cv2.FONT_ITALIC, 1, (255, 0, 0), 2)
