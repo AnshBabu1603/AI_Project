@@ -81,6 +81,122 @@ def get_youtube_video(query):
 
 
 # ---------- UI Starts Here ----------
+
+# Insert the custom CSS and JS
+st.markdown("""
+    <style>
+        :root {
+            --text-strong: #0d0d0d;  
+            --text-primary: #272727;  
+            --text-secondary: #6b6b6b;  
+            --page-primary: #fff;
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --text-strong: #fff;
+            --text-primary: #f0f0f0;  
+            --text-secondary: #c7c7c7;  
+            --page-primary: #0d0d0d;  
+        }
+
+        .type-hero {
+            font-size: 128px;
+            font-weight: 400;
+            line-height: 1;
+            letter-spacing: -1.28px;
+        }
+
+        .type-body-01 {
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 20px;
+            letter-spacing: 0.14px;
+        }
+
+        .type-heading-04 {
+            font-size: 28px;
+            font-weight: 400;
+            line-height: 32px;
+            letter-spacing: -0.28px;
+        }
+
+        .text-primary {
+            color: var(--text-primary);
+        }
+
+        .text-secondary {
+            color: var(--text-secondary);
+        }
+
+        body {
+            font-family: Roobert, sans-serif;
+            margin: 0;
+            padding: 0 1rem;
+            background: var(--page-primary);
+            color: var(--text-strong);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            text-align: center;
+            min-height: 100vh;
+        }
+
+        h2 {
+            margin: 0;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .site-content {
+            margin: auto;
+        }
+
+        header {
+            margin: 1.5rem 0;
+        }
+
+        main > * {
+            margin-bottom: 1rem;
+        }
+
+        .request-id {
+            margin-bottom: 2rem;
+        }
+
+        footer {
+            padding: 1.75rem 0;
+        }
+
+        .logo-render {
+            margin-left: 0.25rem;
+        }
+    </style>
+
+    <script>
+        (function () {
+            try {
+                var prefersDark = window.matchMedia(
+                    "(prefers-color-scheme: dark)"
+                ).matches;
+                if (!prefersDark) return;
+                document.documentElement.setAttribute("data-theme", "dark");
+                var favicon = document.getElementById("favicon");
+                if (favicon)
+                    favicon.setAttribute(
+                        "href",
+                        "data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg clip-path='url(%23clip0_459_963)'%3E%3Cpath d='M11.4327 1.00388C9.64526 0.919753 8.14218 2.21231 7.88574 3.91533C7.87559 3.99436 7.86035 4.07085 7.84766 4.14733C7.44904 6.26845 5.59303 7.87459 3.3638 7.87459C2.5691 7.87459 1.82263 7.67064 1.17265 7.31372C1.09394 7.27038 1 7.32647 1 7.4157V7.87204V14.7479H7.84512V9.59291C7.84512 8.64452 8.61189 7.87459 9.5564 7.87459H11.2677C13.2049 7.87459 14.7639 6.2608 14.6877 4.29774C14.6191 2.53099 13.1922 1.08802 11.4327 1.00388Z' fill='white'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_459_963'%3E%3Crect width='14' height='14' fill='white' transform='translate(1 1)'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E%0A"
+                    );
+            } catch (e) {}
+        })();
+    </script>
+""", unsafe_allow_html=True)
+
+# Display the title and emotion-based background and emoji
 st.title("🎵 Emotion-Based Music Recommender 🎶")
 
 # Emotion background and emoji color coding
